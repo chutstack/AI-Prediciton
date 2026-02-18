@@ -1,0 +1,35 @@
+assets:
+  - BTC-USD
+  - ETH-USD
+  - SPY
+thresholds:
+  BTC-USD: 0.005
+  ETH-USD: 0.005
+  SPY: 0.002
+p_long:
+  BTC-USD: 0.60
+  ETH-USD: 0.60
+  SPY: 0.58
+vol_target:
+  BTC-USD: 0.010
+  ETH-USD: 0.010
+  SPY: 0.006
+caps:
+  per_asset:
+    BTC-USD: 0.30
+    ETH-USD: 0.30
+    SPY: 1.0
+  total_crypto: 0.40
+walkforward:
+  train_days: 756
+  test_days: 63
+  step_days: 63
+  embargo_days: 1
+data:
+  crypto_source: coinbase
+  equity_source: alpaca_or_fallback
+paper_costs:
+  fee_bps: 1.0
+  slippage_bps: 2.0
+timezone: America/New_York
+include_crypto_for_spy: false
