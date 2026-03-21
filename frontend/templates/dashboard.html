@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — PredictAI</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+<nav>
+  <a class="nav-logo" href="/">⚡ PredictAI</a>
+  <div class="nav-links">
+    <a href="/pricing">Upgrade</a>
+    <span id="nav-tier" class="badge badge-accent"></span>
+    <span id="nav-user" class="text-muted" style="font-size:0.85rem;"></span>
+    <button class="btn btn-outline btn-sm" onclick="logout()">Log Out</button>
+  </div>
+</nav>
+
+<div class="container" style="padding-top:32px; padding-bottom:60px;">
+
+  <!-- Stats -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card"><div class="spinner" style="margin:0 auto;"></div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs mt-3">
+    <div class="tab active" onclick="showTab('generate')">Generate Prediction</div>
+    <div class="tab" onclick="showTab('history')">History</div>
+    <div class="tab" onclick="showTab('billing')">Billing</div>
+    <div class="tab" onclick="showTab('admin')" id="tab-admin" style="display:none;">Revenue (Admin)</div>
+  </div>
+
+  <!-- Generate -->
+  <div id="tab-generate">
+    <div class="card" style="max-width:500px;">
+      <h3 style="margin-bottom:16px;">New Prediction</h3>
+      <div id="gen-alert" class="hidden"></div>
+      <div class="form-group">
+        <label>Market</label>
+        <select id="gen-market">
+          <option value="sports">Sports</option>
+          <option value="crypto">Crypto</option>
+          <option value="stocks">Stocks (Pro+)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Symbol / Event (optional)</label>
+        <input type="text" id="gen-symbol" placeholder="e.g. BTC/USD, AAPL, Lakers vs Warriors" />
+      </div>
+      <button class="btn btn-primary w-full" id="gen-btn" onclick="generatePred()">Generate Signal</button>
+    </div>
+
+    <div id="result-card" class="card mt-2 hidden" style="max-width:500px;">
+      <div class="flex justify-between items-center mb-2">
+        <span id="res-badge" class="market-tag"></span>
+        <span id="res-premium-badge"></span>
+      </div>
+      <div class="signal-title" id="res-event"></div>
+      <div class="signal-label" id="res-label"></div>
+      <div style="margin:12px 0;">
+        <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--muted); margin-bottom:4px;">
+          <span>Confidence</span><span id="res-confidence"></span>
+        </div>
+        <div class="confidence-bar"><div class="confidence-fill" id="res-conf-bar"></div></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--muted); margin-top:8px; margin-bottom:4px;">
+          <span>Signal Strength</span><span id="res-strength"></span>
+        </div>
+        <div class="confidence-bar"><div class="confidence-fill" id="res-strength-bar" style="background:linear-gradient(90deg,var(--accent2),var(--warn));"></div></div>
+      </div>
+      <div id="res-target" class="text-muted" style="font-size:0.85rem;"></div>
+      <div id="res-credits" class="text-muted mt-1" style="font-size:0.82rem;"></div>
+      <details class="mt-2" style="cursor:pointer;">
+        <summary style="font-size:0.85rem; color:var(--muted);">Model Features</summary>
+        <pre id="res-features" style="font-size:0.75rem; color:var(--muted); margin-top:8px; white-space:pre-wrap;"></pre>
+      </details>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div id="tab-history" class="hidden">
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
+      <select id="hist-market" onchange="loadHistory()" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:8px;">
+        <option value="">All Markets</option>
+        <option value="sports">Sports</option>
+        <option value="crypto">Crypto</option>
+        <option value="stocks">Stocks</option>
+      </select>
+    </div>
+    <div id="history-list">
+      <div style="text-align:center; padding:40px;"><div class="spinner" style="margin:0 auto;"></div></div>
+    </div>
+  </div>
+
+  <!-- Billing -->
+  <div id="tab-billing" class="hidden">
+    <div class="card" style="max-width:600px; margin-bottom:20px;">
+      <h3 style="margin-bottom:16px;">Your Plan</h3>
+      <div id="billing-plan-info"></div>
+      <div class="flex gap-2 mt-2" style="flex-wrap:wrap;">
+        <a href="/pricing" class="btn btn-primary btn-sm">Upgrade Plan</a>
+        <a href="/pricing" class="btn btn-outline btn-sm">Buy Credits</a>
+      </div>
+    </div>
+    <div class="card" style="max-width:600px;">
+      <h3 style="margin-bottom:16px;">Transaction History</h3>
+      <div id="tx-list"><div class="spinner" style="margin:0 auto;"></div></div>
+    </div>
+  </div>
+
+  <!-- Admin Revenue -->
+  <div id="tab-admin" class="hidden">
+    <div class="card" style="max-width:600px;">
+      <h3 style="margin-bottom:16px;">Platform Revenue</h3>
+      <div id="revenue-data"><div class="spinner" style="margin:0 auto;"></div></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+  if (!getToken()) window.location.href = "/";
+
+  let activeTab = "generate";
+  let currentUser = null;
+
+  function logout() {
+    clearToken();
+    window.location.href = "/";
+  }
+
+  function showTab(name) {
+    document.querySelectorAll(".tabs .tab").forEach(t => t.classList.remove("active"));
+    event.target.classList.add("active");
+    ["generate", "history", "billing", "admin"].forEach(t => {
+      document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== name);
+    });
+    activeTab = name;
+    if (name === "history") loadHistory();
+    if (name === "billing") loadBilling();
+    if (name === "admin") loadRevenue();
+  }
+
+  async function loadStats() {
+    try {
+      const [stats, me] = await Promise.all([getStats(), getMe()]);
+      currentUser = me;
+      document.getElementById("nav-user").textContent = me.email;
+      document.getElementById("nav-tier").textContent = me.subscription_tier.toUpperCase();
+
+      if (me.subscription_tier === "enterprise") {
+        document.getElementById("tab-admin").style.display = "";
+      }
+
+      const quota = stats.monthly_quota === "unlimited" ? "∞" : stats.monthly_quota;
+      document.getElementById("stats-grid").innerHTML = `
+        <div class="stat-card">
+          <div class="stat-value">${stats.predictions_this_month}</div>
+          <div class="stat-label">Predictions This Month</div>
+          <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">of ${quota}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${stats.win_rate !== null ? stats.win_rate + "%" : "—"}</div>
+          <div class="stat-label">Win Rate</div>
+          <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">${stats.total_predictions} resolved</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${me.credits.toFixed(1)}</div>
+          <div class="stat-label">Credits Balance</div>
+          <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">$0.20 per credit</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="text-transform:capitalize;">${me.subscription_tier}</div>
+          <div class="stat-label">Current Plan</div>
+          <div class="text-muted" style="font-size:0.75rem; margin-top:4px;"><a href="/pricing">Upgrade →</a></div>
+        </div>
+      `;
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  async function generatePred() {
+    const market = document.getElementById("gen-market").value;
+    const symbol = document.getElementById("gen-symbol").value.trim() || null;
+    const btn = document.getElementById("gen-btn");
+    const alert = document.getElementById("gen-alert");
+    const result = document.getElementById("result-card");
+
+    btn.disabled = true; btn.textContent = "Generating…";
+    alert.className = "hidden";
+    result.classList.add("hidden");
+
+    try {
+      const pred = await generatePrediction(market, symbol);
+      document.getElementById("res-badge").textContent = pred.market.toUpperCase();
+      document.getElementById("res-badge").className = `market-tag market-${pred.market}`;
+      document.getElementById("res-premium-badge").innerHTML = pred.is_premium
+        ? '<span class="badge badge-premium">PREMIUM</span>' : '';
+      document.getElementById("res-event").textContent = pred.event_name;
+      document.getElementById("res-label").textContent = pred.prediction_label;
+
+      const conf = Math.round(pred.confidence * 100);
+      const str = Math.round(pred.signal_strength * 100);
+      document.getElementById("res-confidence").textContent = conf + "%";
+      document.getElementById("res-conf-bar").style.width = conf + "%";
+      document.getElementById("res-strength").textContent = str + "%";
+      document.getElementById("res-strength-bar").style.width = str + "%";
+
+      document.getElementById("res-target").textContent = pred.target_value
+        ? `Target: $${pred.target_value.toLocaleString()}` : "";
+      document.getElementById("res-credits").textContent = pred.credits_charged > 0
+        ? `${pred.credits_charged} credit(s) used` : "";
+      document.getElementById("res-features").textContent = JSON.stringify(pred.features_used, null, 2);
+      result.classList.remove("hidden");
+
+      loadStats();
+    } catch(e) {
+      alert.className = "alert alert-error";
+      alert.textContent = e.message;
+    }
+    btn.disabled = false; btn.textContent = "Generate Signal";
+  }
+
+  async function loadHistory() {
+    const market = document.getElementById("hist-market").value;
+    const list = document.getElementById("history-list");
+    list.innerHTML = '<div style="text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>';
+    try {
+      const preds = await getHistory(20, market || null);
+      if (!preds.length) {
+        list.innerHTML = '<p class="text-muted">No predictions yet. Generate your first signal!</p>';
+        return;
+      }
+      list.innerHTML = preds.map(p => `
+        <div class="signal-card" style="margin-bottom:12px;">
+          <div class="signal-meta">
+            <span class="market-tag market-${p.market}">${p.market}</span>
+            <span class="text-muted" style="font-size:0.8rem;">${new Date(p.created_at).toLocaleDateString()}</span>
+          </div>
+          <div class="signal-title">${p.event_name}</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="signal-label" style="font-size:1rem; margin-bottom:0;">${p.prediction_label}</div>
+            <div>
+              <span style="font-size:0.85rem; color:var(--accent);">${Math.round(p.confidence*100)}% conf</span>
+              ${p.is_premium ? '<span class="badge badge-premium" style="margin-left:8px;">PREMIUM</span>' : ''}
+            </div>
+          </div>
+          <div class="text-muted mt-1" style="font-size:0.8rem;">Status: ${p.status.replace('_', ' ')}</div>
+        </div>
+      `).join("");
+    } catch(e) {
+      list.innerHTML = `<p class="text-muted">Error: ${e.message}</p>`;
+    }
+  }
+
+  async function loadBilling() {
+    if (!currentUser) return;
+    const info = document.getElementById("billing-plan-info");
+    const txList = document.getElementById("tx-list");
+    const tier = currentUser.subscription_tier;
+
+    info.innerHTML = `
+      <p>Current plan: <strong style="color:var(--accent);text-transform:capitalize;">${tier}</strong></p>
+      <p class="text-muted mt-1" style="font-size:0.85rem;">Credits: <strong style="color:var(--text);">${currentUser.credits.toFixed(1)}</strong></p>
+    `;
+
+    try {
+      const txs = await getTransactions();
+      if (!txs.length) {
+        txList.innerHTML = '<p class="text-muted">No transactions yet.</p>';
+        return;
+      }
+      txList.innerHTML = `<table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+        <thead>
+          <tr style="color:var(--muted); border-bottom:1px solid var(--border);">
+            <th style="padding:8px 0; text-align:left;">Description</th>
+            <th style="padding:8px 0; text-align:right;">Amount</th>
+            <th style="padding:8px 0; text-align:right;">Credits</th>
+            <th style="padding:8px 0; text-align:right;">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${txs.map(t => `
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px 0;">${t.description}</td>
+              <td style="padding:8px 0; text-align:right; color:${t.amount > 0 ? 'var(--accent2)' : 'var(--danger)'};">
+                ${t.amount > 0 ? '+' : ''}$${Math.abs(t.amount).toFixed(2)}
+              </td>
+              <td style="padding:8px 0; text-align:right; color:var(--muted);">
+                ${t.credits_delta !== 0 ? (t.credits_delta > 0 ? '+' : '') + t.credits_delta.toFixed(1) : '—'}
+              </td>
+              <td style="padding:8px 0; text-align:right; color:var(--muted);">${new Date(t.created_at).toLocaleDateString()}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>`;
+    } catch(e) {
+      txList.innerHTML = `<p class="text-muted">Error: ${e.message}</p>`;
+    }
+  }
+
+  async function loadRevenue() {
+    const div = document.getElementById("revenue-data");
+    try {
+      const rev = await getRevenue();
+      div.innerHTML = `
+        <div class="stats-grid" style="margin:0 0 16px;">
+          <div class="stat-card">
+            <div class="stat-value">$${rev.total_revenue_usd.toFixed(2)}</div>
+            <div class="stat-label">Total Revenue</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">$${rev.subscription_revenue_usd.toFixed(2)}</div>
+            <div class="stat-label">Subscription Revenue</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">$${rev.credit_revenue_usd.toFixed(2)}</div>
+            <div class="stat-label">Credit Revenue</div>
+          </div>
+        </div>
+        <h4 style="margin-bottom:8px;">Users by Tier</h4>
+        ${Object.entries(rev.users_by_tier).map(([tier, count]) => `
+          <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
+            <span style="text-transform:capitalize;">${tier}</span>
+            <strong>${count}</strong>
+          </div>
+        `).join("")}
+      `;
+    } catch(e) {
+      div.innerHTML = `<p class="text-muted">Error: ${e.message}</p>`;
+    }
+  }
+
+  loadStats();
+</script>
+</body>
+</html>

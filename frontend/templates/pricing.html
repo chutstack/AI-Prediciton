@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pricing — PredictAI</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+<nav>
+  <a class="nav-logo" href="/">⚡ PredictAI</a>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <button class="btn btn-primary btn-sm" onclick="goToDashboard()">Dashboard</button>
+  </div>
+</nav>
+
+<section class="section">
+  <div class="container" style="text-align:center;">
+    <div class="section-title">Pricing & Plans</div>
+    <div class="section-sub">All plans include a 5-prediction free trial. No credit card required to start.</div>
+
+    <div class="pricing-grid" id="plans-grid">
+      <div style="grid-column:1/-1; text-align:center; padding:40px;">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <!-- Credit Packs -->
+    <div style="margin-top:60px;">
+      <h2 class="section-title" style="font-size:1.4rem;">Pay-Per-Prediction Credits</h2>
+      <p class="section-sub">Don't need a full subscription? Buy credits and use them on premium signals only.</p>
+      <div class="card-grid" id="credits-grid" style="max-width:700px; margin:0 auto;"></div>
+    </div>
+
+    <!-- Monetization breakdown -->
+    <div class="card mt-3" style="max-width:700px; margin:40px auto; text-align:left;">
+      <h3 style="margin-bottom:16px;">Revenue Model Breakdown</h3>
+      <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+        <thead>
+          <tr style="color:var(--muted); border-bottom:1px solid var(--border);">
+            <th style="padding:8px 0; text-align:left;">Revenue Stream</th>
+            <th style="padding:8px 0; text-align:right;">Unit Economics</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px 0;">Basic Subscriptions</td>
+            <td style="padding:8px 0; text-align:right; color:var(--accent2);">$9.99 × users/mo</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px 0;">Pro Subscriptions</td>
+            <td style="padding:8px 0; text-align:right; color:var(--accent2);">$29.99 × users/mo</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px 0;">Enterprise Subscriptions</td>
+            <td style="padding:8px 0; text-align:right; color:var(--accent2);">$99.99 × users/mo</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px 0;">Credit Packs</td>
+            <td style="padding:8px 0; text-align:right; color:var(--accent2);">$5 – $25 one-time</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 0;">API Access (Enterprise)</td>
+            <td style="padding:8px 0; text-align:right; color:var(--accent2);">Included in Enterprise</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="text-muted mt-2" style="font-size:0.82rem;">
+        Example MRR at 1,000 users: 600 free + 250 Basic ($2,497) + 120 Pro ($3,599) + 30 Enterprise ($2,999) = <strong style="color:var(--accent2)">~$9,095/mo</strong>
+      </p>
+    </div>
+  </div>
+</section>
+
+<div class="modal-overlay" id="modal-upgrade">
+  <div class="modal">
+    <h3 id="upgrade-title">Upgrade Plan</h3>
+    <div id="upgrade-msg" class="alert alert-info hidden"></div>
+    <div id="upgrade-error" class="alert alert-error hidden"></div>
+    <p class="text-muted mb-2" id="upgrade-desc"></p>
+    <button class="btn btn-primary w-full" id="upgrade-btn" onclick="confirmUpgrade()">Activate (Demo)</button>
+    <p style="text-align:center; margin-top:12px;"><a href="#" onclick="closeUpgrade()" class="text-muted">Cancel</a></p>
+  </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+let selectedTier = null;
+
+function goToDashboard() {
+  window.location.href = getToken() ? "/dashboard" : "/";
+}
+
+function openUpgrade(tier, name, price) {
+  if (!getToken()) {
+    window.location.href = "/?signup=1";
+    return;
+  }
+  selectedTier = tier;
+  document.getElementById("upgrade-title").textContent = `Upgrade to ${name}`;
+  document.getElementById("upgrade-desc").textContent = `You'll be activated on the ${name} plan ($${price}/mo) immediately (demo mode — no real payment).`;
+  document.getElementById("upgrade-msg").classList.add("hidden");
+  document.getElementById("upgrade-error").classList.add("hidden");
+  document.getElementById("modal-upgrade").classList.add("open");
+}
+
+function closeUpgrade() {
+  document.getElementById("modal-upgrade").classList.remove("open");
+}
+
+async function confirmUpgrade() {
+  const msg = document.getElementById("upgrade-msg");
+  const err = document.getElementById("upgrade-error");
+  const btn = document.getElementById("upgrade-btn");
+  btn.disabled = true; btn.textContent = "Activating…";
+  try {
+    await demoActivate(selectedTier, null);
+    msg.textContent = "Plan activated! Redirecting to dashboard…";
+    msg.classList.remove("hidden");
+    setTimeout(() => window.location.href = "/dashboard", 1500);
+  } catch (e) {
+    err.textContent = e.message;
+    err.classList.remove("hidden");
+    btn.disabled = false; btn.textContent = "Activate (Demo)";
+  }
+}
+
+async function buyCreditPack(pack) {
+  if (!getToken()) {
+    window.location.href = "/?signup=1";
+    return;
+  }
+  try {
+    await demoActivate(null, pack);
+    alert("Credits added! Check your dashboard.");
+  } catch(e) {
+    alert("Error: " + e.message);
+  }
+}
+
+async function loadPlans() {
+  const grid = document.getElementById("plans-grid");
+  const credGrid = document.getElementById("credits-grid");
+  try {
+    const plans = await getPlans();
+    const tiers = ["free", "basic", "pro", "enterprise"];
+    const names = { free: "Free", basic: "Basic", pro: "Pro", enterprise: "Enterprise" };
+    const prices = { free: 0, basic: 9.99, pro: 29.99, enterprise: 99.99 };
+    const features = {
+      free: ["5 predictions/month", "Sports market only", "Basic signal quality", "Community support"],
+      basic: ["50 predictions/month", "Sports + Crypto", "Standard signal quality", "Email support"],
+      pro: ["500 predictions/month", "All markets (Sports, Crypto, Stocks, Forex)", "Premium signals + advanced analytics", "Priority support"],
+      enterprise: ["Unlimited predictions", "All markets + custom", "Elite signals + API access", "White-label ready", "Dedicated support"],
+    };
+    const locked = {
+      free: ["Advanced analytics", "API access", "Premium signals"],
+      basic: ["Advanced analytics", "API access"],
+      pro: ["API access"],
+      enterprise: [],
+    };
+
+    grid.innerHTML = tiers.map(t => `
+      <div class="plan-card ${t === 'pro' ? 'popular' : ''}">
+        <div class="plan-name">${names[t]}</div>
+        <div class="plan-price">$${prices[t]}<span>/mo</span></div>
+        <ul class="plan-features">
+          ${features[t].map(f => `<li>${f}</li>`).join("")}
+          ${locked[t].map(f => `<li class="locked">${f}</li>`).join("")}
+        </ul>
+        ${t === 'free'
+          ? `<button class="btn btn-outline w-full" onclick="goToDashboard()">Get Started Free</button>`
+          : `<button class="btn btn-primary w-full" onclick="openUpgrade('${t}', '${names[t]}', '${prices[t]}')">Upgrade to ${names[t]}</button>`
+        }
+      </div>
+    `).join("");
+
+    // Credit packs
+    const packs = plans.free.credit_packages;
+    credGrid.innerHTML = Object.entries(packs).map(([key, pkg]) => `
+      <div class="card" style="text-align:center;">
+        <div class="fw-bold" style="font-size:1.1rem;">${pkg.label}</div>
+        <div style="font-size:2rem; font-weight:800; color:var(--accent2); margin:8px 0;">${pkg.credits} <span style="font-size:1rem; color:var(--muted);">credits</span></div>
+        <div style="font-size:1.1rem; font-weight:700;">$${pkg.price_usd.toFixed(2)}</div>
+        <div class="text-muted mt-1" style="font-size:0.82rem;">$${(pkg.price_usd / pkg.credits).toFixed(2)} per credit</div>
+        <button class="btn btn-outline w-full mt-2" onclick="buyCreditPack('${key}')">Buy Pack</button>
+      </div>
+    `).join("");
+  } catch (e) {
+    grid.innerHTML = `<p class="text-muted">Failed to load plans: ${e.message}</p>`;
+  }
+}
+
+loadPlans();
+</script>
+</body>
+</html>
