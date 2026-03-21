@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.database import engine, Base
-from app.routes import auth, predictions, billing
+from app.routes import auth, predictions, billing, picks as picks_router
 
 # Seed public signals on startup for the demo teaser page
 import os
@@ -29,6 +29,7 @@ import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.models.pick import Pick  # ensure table created
     Base.metadata.create_all(bind=engine)
     _seed_public_signals()
     yield
@@ -85,6 +86,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(predictions.router)
 app.include_router(billing.router)
+app.include_router(picks_router.router)
 
 # Serve frontend
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")

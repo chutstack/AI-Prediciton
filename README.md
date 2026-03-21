@@ -1,48 +1,70 @@
-# AI Prediction Platform
+# AI Prediction Platform — Make Money Through Your Picks
 
-A complete, monetizable AI prediction platform for sports, crypto, and stock markets.
+A full-stack platform for finding +EV betting opportunities, tracking picks with verified P&L, and monetizing your edge through paid communities.
 
-## Monetization Model
+---
 
-| Tier | Price | Predictions/Month | Markets | Premium Signals |
-|------|-------|-------------------|---------|-----------------|
-| **Free** | $0 | 5 | Sports | ✗ |
-| **Basic** | $9.99/mo | 50 | Sports + Crypto | Credits only |
-| **Pro** | $29.99/mo | 500 | All (Sports, Crypto, Stocks, Forex) | ✓ Included |
-| **Enterprise** | $99.99/mo | Unlimited | All + Custom | ✓ + API Access |
+## The Money-Making Strategy
 
-**Credit Packs** (pay-per-prediction for non-subscribers):
-- Starter: 25 credits / $5
-- Standard: 75 credits / $12 (20% bonus)
-- Pro Pack: 200 credits / $25 (60% bonus)
+There are 3 stacked ways to profit from this platform:
 
-Each premium signal costs 1 credit (~$0.20). Premium = confidence >80%.
+### 1. Value Betting (Your Own Capital)
+Find bets where your model's confidence is higher than the bookmaker's implied probability — that's +EV. Bet these consistently and you profit over the long run.
 
-### Revenue Projections
-At 1,000 users with typical SaaS conversion rates (60% free, 25% Basic, 12% Pro, 3% Enterprise):
-- Basic: 250 × $9.99 = **$2,497/mo**
-- Pro: 120 × $29.99 = **$3,599/mo**
-- Enterprise: 30 × $99.99 = **$2,999/mo**
-- Credits: ~**$1,000/mo**
-- **MRR: ~$10,095**
+**Math:** If your model says 60% and the odds imply 50%, your edge is +10%. Kelly Criterion tells you how much of your bankroll to bet.
+
+**Reality:** Target 5-10% ROI. At $1,000 bankroll and 5 bets/day at $20 avg stake → ~$100/month. Scale the bankroll, scale the returns. Professional bettors target 4-10% ROI.
+
+### 2. Sell Picks (Most Reliable Income)
+Once you have 50+ picks with positive ROI, list your picks service on **Whop.com** or a paid Telegram channel. You get paid regardless of outcomes — subscribers pay for the signal, not the outcome.
+
+**Pricing:** $29–$99/month per subscriber. At 50 subscribers × $49 = **$2,450/month**.
+
+**Growth path:**
+- Build public track record first (this platform tracks it for you)
+- Post free picks on Twitter/X to attract followers
+- Convert followers → paid subscribers via Whop or Telegram
+
+### 3. Prediction Markets (No Account Bans)
+Sportsbooks ban winning bettors. Prediction markets (Polymarket, Kalshi) don't — they welcome sophisticated traders. Use your model there for crypto/sports/politics markets.
 
 ---
 
 ## Quick Start
 
 ```bash
-# 1. Install dependencies
+# 1. Install
 pip install -r requirements.txt
 
-# 2. Configure environment
+# 2. Configure
 cp .env.example .env
-# Edit .env — add your Stripe keys for live payments
+# Add THE_ODDS_API_KEY for live bookmaker odds (free at the-odds-api.com)
+# Add TELEGRAM_BOT_TOKEN + TELEGRAM_CHANNEL_ID to publish picks
 
-# 3. Run the server
-uvicorn app.main:app --reload --port 8000
+# 3. Run
+uvicorn app.main:app --reload
+
+# 4. Open http://localhost:8000
 ```
 
-Open http://localhost:8000 — the landing page, dashboard, and pricing are live.
+---
+
+## Core Workflow
+
+```
+1. Open dashboard → "Value Scanner"
+2. Select sport → Scan Now
+   → AI model runs against live bookmaker odds
+   → Shows EV% for each matchup
+3. Click "Log This Pick" on any +EV bet
+   → Timestamped before event (builds verified record)
+   → Kelly-optimal stake calculated automatically
+4. Click "Publish" → sends pick to Telegram channel
+5. After event: click "Record Result"
+   → P&L calculated, track record updated
+6. Dashboard → "Track Record" shows your verified stats
+   → When 50+ picks + 5%+ ROI → ready to list on Whop
+```
 
 ---
 
@@ -51,29 +73,32 @@ Open http://localhost:8000 — the landing page, dashboard, and pricing are live
 ```
 AI-Prediciton/
 ├── app/
-│   ├── main.py                   # FastAPI app + lifespan/startup
-│   ├── config.py                 # Settings via .env
-│   ├── database.py               # SQLAlchemy setup
+│   ├── main.py                     # FastAPI app
+│   ├── config.py                   # Env settings
+│   ├── database.py                 # SQLAlchemy
 │   ├── models/
-│   │   ├── user.py               # User + SubscriptionTier + TIER_LIMITS
-│   │   ├── prediction.py         # Prediction records
-│   │   └── transaction.py        # Billing/payment transactions
+│   │   ├── user.py                 # Auth + subscription state
+│   │   ├── pick.py                 # ⭐ Pick record with P&L, EV, Kelly
+│   │   ├── prediction.py           # Raw model outputs
+│   │   └── transaction.py          # Billing history
 │   ├── routes/
-│   │   ├── auth.py               # Register, login, /me
-│   │   ├── predictions.py        # Generate, history, stats
-│   │   └── billing.py            # Subscriptions, credits, Stripe webhook
+│   │   ├── auth.py                 # Register / login / JWT
+│   │   ├── picks.py                # ⭐ Value scanner, Kelly calc, pick CRUD
+│   │   ├── predictions.py          # Raw prediction generation
+│   │   └── billing.py              # Subscription management
 │   └── services/
-│       ├── auth.py               # JWT, password hashing
-│       ├── prediction_engine.py  # ML prediction models (Sports, Crypto, Stocks)
-│       └── monetization.py       # Quota enforcement, credit deduction, revenue
+│       ├── prediction_engine.py    # ML models (Sports, Crypto, Stocks)
+│       ├── odds_service.py         # ⭐ The Odds API — live bookmaker odds
+│       ├── value_calculator.py     # ⭐ EV%, Kelly criterion, P&L analysis
+│       └── telegram_publisher.py   # ⭐ Push picks to Telegram channel
 ├── frontend/
 │   ├── templates/
-│   │   ├── index.html            # Landing page with public signal teaser
-│   │   ├── dashboard.html        # User dashboard
-│   │   └── pricing.html          # Pricing + credit packs
+│   │   ├── index.html              # Landing page
+│   │   ├── dashboard.html          # ⭐ Value scanner + pick tracker
+│   │   └── pricing.html            # Subscription tiers
 │   └── static/
 │       ├── css/styles.css
-│       └── js/api.js             # Frontend API client
+│       └── js/api.js
 └── tests/
     └── test_monetization.py
 ```
@@ -82,76 +107,61 @@ AI-Prediciton/
 
 ## API Reference
 
-All endpoints documented at **http://localhost:8000/docs** (Swagger UI).
+Full docs at **http://localhost:8000/docs**
 
-### Auth
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/auth/register` | Create account |
-| POST | `/auth/token` | Login → JWT token |
-| GET | `/auth/me` | Get current user |
+### Key Endpoints
 
-### Predictions
-| Method | Endpoint | Description |
+| Method | Endpoint | What it does |
 |--------|----------|-------------|
-| GET | `/predictions/public` | Free teaser signals (no auth) |
-| POST | `/predictions/generate` | Generate AI prediction |
-| GET | `/predictions/history` | User's prediction history |
-| GET | `/predictions/stats` | Win rate + quota usage |
-
-### Billing
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/billing/plans` | All plans + credit packs |
-| POST | `/billing/subscribe` | Create Stripe Checkout session |
-| POST | `/billing/buy-credits` | Purchase credit pack |
-| POST | `/billing/demo-activate` | **Dev only** — activate without payment |
-| POST | `/billing/cancel` | Cancel subscription |
-| POST | `/billing/webhook` | Stripe webhook handler |
-| GET | `/billing/revenue` | Platform revenue metrics |
-| GET | `/billing/transactions` | User billing history |
+| GET | `/picks/scan-value?sport=basketball_nba&min_ev=3` | Run model vs. live odds, find +EV bets |
+| POST | `/picks/kelly` | Calculate Kelly-optimal bet size |
+| POST | `/picks` | Log a pick (timestamped) |
+| PATCH | `/picks/{id}/result` | Record win/loss, compute P&L |
+| POST | `/picks/{id}/publish` | Send to Telegram channel |
+| GET | `/picks/record` | Public verified track record |
 
 ---
 
-## Setting Up Stripe (Live Payments)
+## Setting Up The Odds API
 
-1. Create account at [stripe.com](https://stripe.com)
-2. Create 3 subscription products in Stripe Dashboard:
-   - Basic Plan: $9.99/month → copy Price ID
-   - Pro Plan: $29.99/month → copy Price ID
-   - Enterprise Plan: $99.99/month → copy Price ID
+1. Sign up at [the-odds-api.com](https://the-odds-api.com) — free tier = 500 requests/month
+2. Set `THE_ODDS_API_KEY=your_key` in `.env`
+3. That's it — the scanner uses live odds automatically
+
+Free tier scan strategy: scan once every 4 hours = ~180 requests/month, leaves 320 for other queries.
+
+## Setting Up Telegram Publishing
+
+1. Message [@BotFather](https://t.me/BotFather) on Telegram → `/newbot` → copy the token
+2. Create a channel, add your bot as admin
 3. Set in `.env`:
    ```
-   STRIPE_SECRET_KEY=sk_live_...
-   STRIPE_WEBHOOK_SECRET=whsec_...
-   STRIPE_BASIC_PRICE_ID=price_...
-   STRIPE_PRO_PRICE_ID=price_...
-   STRIPE_ENTERPRISE_PRICE_ID=price_...
+   TELEGRAM_BOT_TOKEN=7123456789:AAHxxx
+   TELEGRAM_CHANNEL_ID=@yourchannel
    ```
-4. Point Stripe webhook to `https://yourdomain.com/billing/webhook`
-5. Remove the `/billing/demo-activate` endpoint before going live
+4. Use "Log + Publish" when logging picks, or "Publish" on any existing pick
+
+**Free vs Paid channel strategy:**
+- Free channel: post picks without exact odds/confidence (teaser)
+- Paid channel: full details — confidence %, EV%, Kelly stake, bookmaker
+
+## Listing on Whop.com
+
+1. Build 50+ resolved picks with 5%+ ROI
+2. Sign up at [whop.com](https://whop.com/sell)
+3. Create a product linked to your Telegram/Discord
+4. Whop handles payments, access, and churn automatically
+5. Suggested pricing: $29/mo basic, $69/mo premium (with analysis)
 
 ---
 
-## Replacing Mock Models with Real Data
+## Replacing Mock Models With Real Data
 
-The prediction engine (`app/services/prediction_engine.py`) currently uses simulated feature data.
-Replace the data fetchers with real API calls:
+The prediction engine uses simulated signals by default. For real edge, connect real data:
 
-| Market | Recommended APIs |
-|--------|-----------------|
-| Sports | The Odds API, Sportradar, Pinnacle |
-| Crypto | Binance WebSocket, CoinGecko, Messari |
-| Stocks | Alpaca Markets, Polygon.io, Yahoo Finance |
-| Forex | OANDA, Alpha Vantage |
-
----
-
-## Growth Levers
-
-1. **SEO / Content**: Post daily prediction summaries → organic traffic
-2. **Track record page**: Public win-rate leaderboard builds trust
-3. **Referral program**: Give 5 free credits per referred signup
-4. **Affiliate partnerships**: Revenue share with sportsbooks/exchanges
-5. **White-label API**: Sell prediction feeds to other apps (Enterprise)
-6. **Discord/Telegram bot**: Push premium signals to channels — drives upgrades
+| Market | Recommended Data Sources |
+|--------|--------------------------|
+| Sports | The Odds API (for odds + line movement), Sportradar |
+| Crypto | Binance WebSocket, CoinGecko, Glassnode |
+| Stocks | Polygon.io, Alpaca Markets |
+| Prediction Markets | Polymarket API, Kalshi API |

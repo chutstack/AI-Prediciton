@@ -10,331 +10,610 @@
 <nav>
   <a class="nav-logo" href="/">⚡ PredictAI</a>
   <div class="nav-links">
-    <a href="/pricing">Upgrade</a>
-    <span id="nav-tier" class="badge badge-accent"></span>
     <span id="nav-user" class="text-muted" style="font-size:0.85rem;"></span>
     <button class="btn btn-outline btn-sm" onclick="logout()">Log Out</button>
   </div>
 </nav>
 
-<div class="container" style="padding-top:32px; padding-bottom:60px;">
+<div class="container" style="padding-top:28px; padding-bottom:60px;">
 
-  <!-- Stats -->
-  <div class="stats-grid" id="stats-grid">
+  <!-- Stats bar -->
+  <div class="stats-grid" id="stats-grid" style="margin-bottom:28px;">
     <div class="stat-card"><div class="spinner" style="margin:0 auto;"></div></div>
   </div>
 
   <!-- Tabs -->
-  <div class="tabs mt-3">
-    <div class="tab active" onclick="showTab('generate')">Generate Prediction</div>
-    <div class="tab" onclick="showTab('history')">History</div>
-    <div class="tab" onclick="showTab('billing')">Billing</div>
-    <div class="tab" onclick="showTab('admin')" id="tab-admin" style="display:none;">Revenue (Admin)</div>
+  <div class="tabs">
+    <div class="tab active" data-tab="scanner" onclick="switchTab(this,'scanner')">🔍 Value Scanner</div>
+    <div class="tab" data-tab="kelly"    onclick="switchTab(this,'kelly')">📐 Kelly Calculator</div>
+    <div class="tab" data-tab="log"      onclick="switchTab(this,'log')">📝 Log Pick</div>
+    <div class="tab" data-tab="picks"    onclick="switchTab(this,'picks')">📋 My Picks</div>
+    <div class="tab" data-tab="record"   onclick="switchTab(this,'record')">🏆 Track Record</div>
   </div>
 
-  <!-- Generate -->
-  <div id="tab-generate">
-    <div class="card" style="max-width:500px;">
-      <h3 style="margin-bottom:16px;">New Prediction</h3>
-      <div id="gen-alert" class="hidden"></div>
-      <div class="form-group">
-        <label>Market</label>
-        <select id="gen-market">
-          <option value="sports">Sports</option>
-          <option value="crypto">Crypto</option>
-          <option value="stocks">Stocks (Pro+)</option>
-        </select>
+  <!-- ── VALUE SCANNER ─────────────────────────────────────────────── -->
+  <div id="tab-scanner">
+    <div class="card" style="max-width:560px; margin-bottom:20px;">
+      <h3 style="margin-bottom:16px;">Scan for +EV Bets</h3>
+      <p class="text-muted mb-2" style="font-size:0.87rem;">
+        Runs the AI model against live bookmaker odds. Only bets with positive expected value are surfaced.
+      </p>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <div class="form-group" style="flex:1; min-width:160px;">
+          <label>Sport</label>
+          <select id="scan-sport">
+            <option value="basketball_nba">NBA Basketball</option>
+            <option value="americanfootball_nfl">NFL Football</option>
+            <option value="baseball_mlb">MLB Baseball</option>
+            <option value="icehockey_nhl">NHL Hockey</option>
+            <option value="soccer_epl">EPL Soccer</option>
+            <option value="mma_mixed_martial_arts">MMA</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1; min-width:120px;">
+          <label>Min EV %</label>
+          <input type="number" id="scan-minev" value="3" min="0" max="30" step="0.5" />
+        </div>
       </div>
-      <div class="form-group">
-        <label>Symbol / Event (optional)</label>
-        <input type="text" id="gen-symbol" placeholder="e.g. BTC/USD, AAPL, Lakers vs Warriors" />
-      </div>
-      <button class="btn btn-primary w-full" id="gen-btn" onclick="generatePred()">Generate Signal</button>
+      <button class="btn btn-primary" id="scan-btn" onclick="runScan()">Scan Now</button>
     </div>
 
-    <div id="result-card" class="card mt-2 hidden" style="max-width:500px;">
-      <div class="flex justify-between items-center mb-2">
-        <span id="res-badge" class="market-tag"></span>
-        <span id="res-premium-badge"></span>
+    <div id="scan-results"></div>
+  </div>
+
+  <!-- ── KELLY CALCULATOR ──────────────────────────────────────────── -->
+  <div id="tab-kelly" class="hidden">
+    <div class="card" style="max-width:480px;">
+      <h3 style="margin-bottom:16px;">Kelly Criterion Calculator</h3>
+      <p class="text-muted mb-2" style="font-size:0.87rem;">
+        Enter your model's confidence and the odds you can get. Get back optimal bet sizes.
+        Always use <strong>Quarter Kelly</strong> in practice.
+      </p>
+      <div class="form-group">
+        <label>Your Model Confidence (%)</label>
+        <input type="number" id="k-conf" placeholder="e.g. 62" min="1" max="99" step="0.1" />
       </div>
-      <div class="signal-title" id="res-event"></div>
-      <div class="signal-label" id="res-label"></div>
-      <div style="margin:12px 0;">
-        <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--muted); margin-bottom:4px;">
-          <span>Confidence</span><span id="res-confidence"></span>
-        </div>
-        <div class="confidence-bar"><div class="confidence-fill" id="res-conf-bar"></div></div>
-        <div style="display:flex; justify-content:space-between; font-size:0.82rem; color:var(--muted); margin-top:8px; margin-bottom:4px;">
-          <span>Signal Strength</span><span id="res-strength"></span>
-        </div>
-        <div class="confidence-bar"><div class="confidence-fill" id="res-strength-bar" style="background:linear-gradient(90deg,var(--accent2),var(--warn));"></div></div>
+      <div class="form-group">
+        <label>Decimal Odds (e.g. 1.95)</label>
+        <input type="number" id="k-odds" placeholder="e.g. 1.95" min="1.01" step="0.01" />
       </div>
-      <div id="res-target" class="text-muted" style="font-size:0.85rem;"></div>
-      <div id="res-credits" class="text-muted mt-1" style="font-size:0.82rem;"></div>
-      <details class="mt-2" style="cursor:pointer;">
-        <summary style="font-size:0.85rem; color:var(--muted);">Model Features</summary>
-        <pre id="res-features" style="font-size:0.75rem; color:var(--muted); margin-top:8px; white-space:pre-wrap;"></pre>
-      </details>
+      <div class="form-group">
+        <label>Your Bankroll ($)</label>
+        <input type="number" id="k-bankroll" value="1000" min="1" />
+      </div>
+      <button class="btn btn-primary" onclick="calcKelly()">Calculate</button>
+      <div id="kelly-result" class="mt-2 hidden"></div>
     </div>
   </div>
 
-  <!-- History -->
-  <div id="tab-history" class="hidden">
-    <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
-      <select id="hist-market" onchange="loadHistory()" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:8px;">
-        <option value="">All Markets</option>
-        <option value="sports">Sports</option>
-        <option value="crypto">Crypto</option>
-        <option value="stocks">Stocks</option>
-      </select>
+  <!-- ── LOG PICK ──────────────────────────────────────────────────── -->
+  <div id="tab-log" class="hidden">
+    <div class="card" style="max-width:540px;">
+      <h3 style="margin-bottom:4px;">Log a Pick</h3>
+      <p class="text-muted mb-2" style="font-size:0.87rem;">
+        Every pick logged here is timestamped before the event. That's your verified track record.
+      </p>
+      <div id="log-alert" class="hidden"></div>
+      <div class="form-group">
+        <label>Event Name</label>
+        <input type="text" id="lp-event" placeholder="e.g. Lakers vs Warriors" />
+      </div>
+      <div class="form-group">
+        <label>Your Pick</label>
+        <input type="text" id="lp-pick" placeholder="e.g. Los Angeles Lakers ML" />
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <div class="form-group" style="flex:1; min-width:130px;">
+          <label>Decimal Odds</label>
+          <input type="number" id="lp-odds" placeholder="1.90" min="1.01" step="0.01" />
+        </div>
+        <div class="form-group" style="flex:1; min-width:130px;">
+          <label>Model Confidence (%)</label>
+          <input type="number" id="lp-conf" placeholder="62" min="1" max="99" />
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <div class="form-group" style="flex:1; min-width:130px;">
+          <label>Bookmaker</label>
+          <input type="text" id="lp-book" placeholder="DraftKings" />
+        </div>
+        <div class="form-group" style="flex:1; min-width:130px;">
+          <label>Stake ($) optional</label>
+          <input type="number" id="lp-stake" placeholder="50" min="0" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Analysis / Rationale (optional)</label>
+        <input type="text" id="lp-analysis" placeholder="Why you like this pick" />
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="logPick()">Log Pick</button>
+        <button class="btn btn-outline" onclick="logAndPublish()">Log + Publish to Telegram</button>
+      </div>
     </div>
-    <div id="history-list">
+  </div>
+
+  <!-- ── MY PICKS ──────────────────────────────────────────────────── -->
+  <div id="tab-picks" class="hidden">
+    <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+      <button class="btn btn-outline btn-sm" onclick="loadPicks(null)">All</button>
+      <button class="btn btn-outline btn-sm" onclick="loadPicks('pending')">Pending</button>
+      <button class="btn btn-outline btn-sm" onclick="loadPicks('win')">Wins ✅</button>
+      <button class="btn btn-outline btn-sm" onclick="loadPicks('loss')">Losses ❌</button>
+    </div>
+    <div id="picks-list">
       <div style="text-align:center; padding:40px;"><div class="spinner" style="margin:0 auto;"></div></div>
     </div>
   </div>
 
-  <!-- Billing -->
-  <div id="tab-billing" class="hidden">
-    <div class="card" style="max-width:600px; margin-bottom:20px;">
-      <h3 style="margin-bottom:16px;">Your Plan</h3>
-      <div id="billing-plan-info"></div>
-      <div class="flex gap-2 mt-2" style="flex-wrap:wrap;">
-        <a href="/pricing" class="btn btn-primary btn-sm">Upgrade Plan</a>
-        <a href="/pricing" class="btn btn-outline btn-sm">Buy Credits</a>
-      </div>
-    </div>
-    <div class="card" style="max-width:600px;">
-      <h3 style="margin-bottom:16px;">Transaction History</h3>
-      <div id="tx-list"><div class="spinner" style="margin:0 auto;"></div></div>
-    </div>
-  </div>
-
-  <!-- Admin Revenue -->
-  <div id="tab-admin" class="hidden">
-    <div class="card" style="max-width:600px;">
-      <h3 style="margin-bottom:16px;">Platform Revenue</h3>
-      <div id="revenue-data"><div class="spinner" style="margin:0 auto;"></div></div>
+  <!-- ── TRACK RECORD ──────────────────────────────────────────────── -->
+  <div id="tab-record" class="hidden">
+    <div id="record-data">
+      <div style="text-align:center; padding:40px;"><div class="spinner" style="margin:0 auto;"></div></div>
     </div>
   </div>
 
 </div>
 
+<!-- Resolve Pick Modal -->
+<div class="modal-overlay" id="modal-resolve">
+  <div class="modal">
+    <h3>Record Result</h3>
+    <input type="hidden" id="resolve-pick-id" />
+    <div class="form-group mt-2">
+      <label>Result</label>
+      <select id="resolve-result">
+        <option value="win">Win ✅</option>
+        <option value="loss">Loss ❌</option>
+        <option value="push">Push ↩️</option>
+        <option value="void">Void 🚫</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Closing Odds (optional)</label>
+      <input type="number" id="resolve-closing" placeholder="1.95" step="0.01" />
+    </div>
+    <button class="btn btn-primary w-full" onclick="submitResolve()">Save Result</button>
+    <p style="text-align:center; margin-top:10px;">
+      <a href="#" onclick="document.getElementById('modal-resolve').classList.remove('open')" class="text-muted">Cancel</a>
+    </p>
+  </div>
+</div>
+
 <script src="/static/js/api.js"></script>
 <script>
-  if (!getToken()) window.location.href = "/";
+if (!getToken()) window.location.href = "/";
 
-  let activeTab = "generate";
-  let currentUser = null;
+function logout() { clearToken(); window.location.href = "/"; }
 
-  function logout() {
-    clearToken();
-    window.location.href = "/";
-  }
+function switchTab(el, name) {
+  document.querySelectorAll(".tabs .tab").forEach(t => t.classList.remove("active"));
+  el.classList.add("active");
+  ["scanner","kelly","log","picks","record"].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== name);
+  });
+  if (name === "picks") loadPicks(null);
+  if (name === "record") loadRecord();
+}
 
-  function showTab(name) {
-    document.querySelectorAll(".tabs .tab").forEach(t => t.classList.remove("active"));
-    event.target.classList.add("active");
-    ["generate", "history", "billing", "admin"].forEach(t => {
-      document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== name);
-    });
-    activeTab = name;
-    if (name === "history") loadHistory();
-    if (name === "billing") loadBilling();
-    if (name === "admin") loadRevenue();
-  }
-
-  async function loadStats() {
-    try {
-      const [stats, me] = await Promise.all([getStats(), getMe()]);
-      currentUser = me;
-      document.getElementById("nav-user").textContent = me.email;
-      document.getElementById("nav-tier").textContent = me.subscription_tier.toUpperCase();
-
-      if (me.subscription_tier === "enterprise") {
-        document.getElementById("tab-admin").style.display = "";
-      }
-
-      const quota = stats.monthly_quota === "unlimited" ? "∞" : stats.monthly_quota;
-      document.getElementById("stats-grid").innerHTML = `
-        <div class="stat-card">
-          <div class="stat-value">${stats.predictions_this_month}</div>
-          <div class="stat-label">Predictions This Month</div>
-          <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">of ${quota}</div>
+// ── Stats ────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const [me, record] = await Promise.all([getMe(), apiFetch("/picks/record")]);
+    document.getElementById("nav-user").textContent = me.email;
+    document.getElementById("stats-grid").innerHTML = `
+      <div class="stat-card">
+        <div class="stat-value">${record.total_picks}</div>
+        <div class="stat-label">Total Picks</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--accent2)">${record.win_rate_pct !== null ? record.win_rate_pct + "%" : "—"}</div>
+        <div class="stat-label">Win Rate</div>
+        <div class="text-muted" style="font-size:0.73rem; margin-top:2px;">${record.wins}W / ${record.losses}L</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:${(record.roi_pct||0)>=0?'var(--accent2)':'var(--danger)'}">
+          ${record.roi_pct !== null ? (record.roi_pct >= 0 ? '+' : '') + record.roi_pct + "%" : "—"}
         </div>
-        <div class="stat-card">
-          <div class="stat-value">${stats.win_rate !== null ? stats.win_rate + "%" : "—"}</div>
-          <div class="stat-label">Win Rate</div>
-          <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">${stats.total_predictions} resolved</div>
+        <div class="stat-label">ROI</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:${(record.total_profit||0)>=0?'var(--accent2)':'var(--danger)'}">
+          ${record.total_profit !== null ? (record.total_profit >= 0 ? '+$' : '-$') + Math.abs(record.total_profit).toFixed(2) : "—"}
         </div>
-        <div class="stat-card">
-          <div class="stat-value">${me.credits.toFixed(1)}</div>
-          <div class="stat-label">Credits Balance</div>
-          <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">$0.20 per credit</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" style="text-transform:capitalize;">${me.subscription_tier}</div>
-          <div class="stat-label">Current Plan</div>
-          <div class="text-muted" style="font-size:0.75rem; margin-top:4px;"><a href="/pricing">Upgrade →</a></div>
-        </div>
-      `;
-    } catch(e) {
-      console.error(e);
+        <div class="stat-label">Total P&L</div>
+      </div>
+    `;
+  } catch(e) { console.error(e); }
+}
+
+// ── Value Scanner ────────────────────────────────────────────────────────
+async function runScan() {
+  const sport = document.getElementById("scan-sport").value;
+  const minEv = document.getElementById("scan-minev").value;
+  const btn = document.getElementById("scan-btn");
+  const results = document.getElementById("scan-results");
+
+  btn.disabled = true; btn.textContent = "Scanning…";
+  results.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner" style="margin:0 auto;"></div><p class="text-muted mt-1">Running model vs. bookmaker odds…</p></div>';
+
+  try {
+    const data = await apiFetch(`/picks/scan-value?sport=${sport}&min_ev=${minEv}`);
+    const bets = data.all_bets;
+
+    if (!bets.length) {
+      results.innerHTML = '<div class="card"><p class="text-muted">No bets found for this sport. Try lowering the min EV threshold.</p></div>';
+      return;
     }
-  }
 
-  async function generatePred() {
-    const market = document.getElementById("gen-market").value;
-    const symbol = document.getElementById("gen-symbol").value.trim() || null;
-    const btn = document.getElementById("gen-btn");
-    const alert = document.getElementById("gen-alert");
-    const result = document.getElementById("result-card");
+    const valueBets = bets.filter(b => b.is_value);
+    const others = bets.filter(b => !b.is_value);
 
-    btn.disabled = true; btn.textContent = "Generating…";
-    alert.className = "hidden";
-    result.classList.add("hidden");
-
-    try {
-      const pred = await generatePrediction(market, symbol);
-      document.getElementById("res-badge").textContent = pred.market.toUpperCase();
-      document.getElementById("res-badge").className = `market-tag market-${pred.market}`;
-      document.getElementById("res-premium-badge").innerHTML = pred.is_premium
-        ? '<span class="badge badge-premium">PREMIUM</span>' : '';
-      document.getElementById("res-event").textContent = pred.event_name;
-      document.getElementById("res-label").textContent = pred.prediction_label;
-
-      const conf = Math.round(pred.confidence * 100);
-      const str = Math.round(pred.signal_strength * 100);
-      document.getElementById("res-confidence").textContent = conf + "%";
-      document.getElementById("res-conf-bar").style.width = conf + "%";
-      document.getElementById("res-strength").textContent = str + "%";
-      document.getElementById("res-strength-bar").style.width = str + "%";
-
-      document.getElementById("res-target").textContent = pred.target_value
-        ? `Target: $${pred.target_value.toLocaleString()}` : "";
-      document.getElementById("res-credits").textContent = pred.credits_charged > 0
-        ? `${pred.credits_charged} credit(s) used` : "";
-      document.getElementById("res-features").textContent = JSON.stringify(pred.features_used, null, 2);
-      result.classList.remove("hidden");
-
-      loadStats();
-    } catch(e) {
-      alert.className = "alert alert-error";
-      alert.textContent = e.message;
-    }
-    btn.disabled = false; btn.textContent = "Generate Signal";
-  }
-
-  async function loadHistory() {
-    const market = document.getElementById("hist-market").value;
-    const list = document.getElementById("history-list");
-    list.innerHTML = '<div style="text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>';
-    try {
-      const preds = await getHistory(20, market || null);
-      if (!preds.length) {
-        list.innerHTML = '<p class="text-muted">No predictions yet. Generate your first signal!</p>';
-        return;
-      }
-      list.innerHTML = preds.map(p => `
-        <div class="signal-card" style="margin-bottom:12px;">
-          <div class="signal-meta">
-            <span class="market-tag market-${p.market}">${p.market}</span>
-            <span class="text-muted" style="font-size:0.8rem;">${new Date(p.created_at).toLocaleDateString()}</span>
-          </div>
-          <div class="signal-title">${p.event_name}</div>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div class="signal-label" style="font-size:1rem; margin-bottom:0;">${p.prediction_label}</div>
-            <div>
-              <span style="font-size:0.85rem; color:var(--accent);">${Math.round(p.confidence*100)}% conf</span>
-              ${p.is_premium ? '<span class="badge badge-premium" style="margin-left:8px;">PREMIUM</span>' : ''}
-            </div>
-          </div>
-          <div class="text-muted mt-1" style="font-size:0.8rem;">Status: ${p.status.replace('_', ' ')}</div>
-        </div>
-      `).join("");
-    } catch(e) {
-      list.innerHTML = `<p class="text-muted">Error: ${e.message}</p>`;
-    }
-  }
-
-  async function loadBilling() {
-    if (!currentUser) return;
-    const info = document.getElementById("billing-plan-info");
-    const txList = document.getElementById("tx-list");
-    const tier = currentUser.subscription_tier;
-
-    info.innerHTML = `
-      <p>Current plan: <strong style="color:var(--accent);text-transform:capitalize;">${tier}</strong></p>
-      <p class="text-muted mt-1" style="font-size:0.85rem;">Credits: <strong style="color:var(--text);">${currentUser.credits.toFixed(1)}</strong></p>
+    let html = `
+      <div class="alert alert-info" style="margin-bottom:16px;">
+        Scanned <strong>${data.total_events_scanned} events</strong> — found <strong>${valueBets.length} value bet${valueBets.length !== 1 ? 's' : ''}</strong>
+        ${data.using_live_odds ? '' : ' <em>(using demo odds — add THE_ODDS_API_KEY for live data)</em>'}
+      </div>
     `;
 
-    try {
-      const txs = await getTransactions();
-      if (!txs.length) {
-        txList.innerHTML = '<p class="text-muted">No transactions yet.</p>';
-        return;
-      }
-      txList.innerHTML = `<table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-        <thead>
-          <tr style="color:var(--muted); border-bottom:1px solid var(--border);">
-            <th style="padding:8px 0; text-align:left;">Description</th>
-            <th style="padding:8px 0; text-align:right;">Amount</th>
-            <th style="padding:8px 0; text-align:right;">Credits</th>
-            <th style="padding:8px 0; text-align:right;">Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${txs.map(t => `
-            <tr style="border-bottom:1px solid var(--border);">
-              <td style="padding:8px 0;">${t.description}</td>
-              <td style="padding:8px 0; text-align:right; color:${t.amount > 0 ? 'var(--accent2)' : 'var(--danger)'};">
-                ${t.amount > 0 ? '+' : ''}$${Math.abs(t.amount).toFixed(2)}
-              </td>
-              <td style="padding:8px 0; text-align:right; color:var(--muted);">
-                ${t.credits_delta !== 0 ? (t.credits_delta > 0 ? '+' : '') + t.credits_delta.toFixed(1) : '—'}
-              </td>
-              <td style="padding:8px 0; text-align:right; color:var(--muted);">${new Date(t.created_at).toLocaleDateString()}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>`;
-    } catch(e) {
-      txList.innerHTML = `<p class="text-muted">Error: ${e.message}</p>`;
+    if (valueBets.length > 0) {
+      html += '<h3 style="margin-bottom:12px; color:var(--accent2);">✅ Value Bets</h3>';
+      html += '<div class="card-grid">' + valueBets.map(b => renderBetCard(b, true)).join("") + '</div>';
     }
+
+    if (others.length > 0) {
+      html += '<h3 style="margin-top:24px; margin-bottom:12px; color:var(--muted); font-size:1rem;">Other Events (No Value Found)</h3>';
+      html += '<div class="card-grid">' + others.map(b => renderBetCard(b, false)).join("") + '</div>';
+    }
+
+    results.innerHTML = html;
+  } catch(e) {
+    results.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+  btn.disabled = false; btn.textContent = "Scan Now";
+}
+
+function renderBetCard(b, isValue) {
+  const evColor = b.ev_percent >= 8 ? "var(--accent2)" : b.ev_percent >= 3 ? "var(--warn)" : "var(--muted)";
+  return `
+    <div class="signal-card ${isValue ? '' : ''}">
+      <div class="signal-meta">
+        <span class="market-tag market-sports">${b.sport.replace('_',' ').toUpperCase().slice(0,12)}</span>
+        ${isValue ? '<span class="badge badge-success">+EV</span>' : ''}
+      </div>
+      <div class="signal-title" style="font-size:0.87rem;">${b.event_name}</div>
+      <div class="signal-label" style="font-size:1.05rem;">${b.pick}</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:0.8rem; margin:8px 0;">
+        <div>Odds: <strong>${b.best_odds}</strong></div>
+        <div>Book: <strong>${b.best_at}</strong></div>
+        <div>Model: <strong>${b.model_confidence_pct}%</strong></div>
+        <div>Implied: <strong>${b.implied_prob_pct}%</strong></div>
+        <div>EV: <strong style="color:${evColor}">${b.ev_percent > 0 ? '+' : ''}${b.ev_percent}%</strong></div>
+        <div>Kelly¼: <strong>${b.kelly_quarter_pct}%</strong></div>
+      </div>
+      ${isValue ? `<button class="btn btn-success btn-sm w-full" onclick="prefillLog('${b.event_name}','${b.pick}',${b.best_odds},${b.model_confidence_pct},'${b.best_at}')">Log This Pick</button>` : ''}
+    </div>
+  `;
+}
+
+function prefillLog(event, pick, odds, conf, book) {
+  document.getElementById("lp-event").value = event;
+  document.getElementById("lp-pick").value = pick;
+  document.getElementById("lp-odds").value = odds;
+  document.getElementById("lp-conf").value = conf;
+  document.getElementById("lp-book").value = book;
+  // switch to Log tab
+  const logTab = document.querySelector('[data-tab="log"]');
+  switchTab(logTab, "log");
+}
+
+// ── Kelly Calculator ─────────────────────────────────────────────────────
+async function calcKelly() {
+  const conf = parseFloat(document.getElementById("k-conf").value) / 100;
+  const odds = parseFloat(document.getElementById("k-odds").value);
+  const bankroll = parseFloat(document.getElementById("k-bankroll").value);
+  const result = document.getElementById("kelly-result");
+
+  if (!conf || !odds) return;
+
+  try {
+    const data = await apiFetch("/picks/kelly", {
+      method: "POST",
+      body: JSON.stringify({ model_confidence: conf, decimal_odds: odds, bankroll }),
+    });
+
+    const isPos = data.ev_percent > 0;
+    result.className = `card mt-2 ${isPos ? '' : ''}`;
+    result.innerHTML = `
+      <div class="alert ${data.ev_percent >= 3 ? 'alert-success' : data.ev_percent > 0 ? 'alert-info' : 'alert-error'}" style="margin-bottom:12px;">
+        ${data.recommendation}
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.88rem;">
+        <div>Expected Value: <strong style="color:${isPos?'var(--accent2)':'var(--danger)'}"> ${data.ev_percent > 0 ? '+' : ''}${data.ev_percent}%</strong></div>
+        <div>Your Edge: <strong>${data.your_edge_pct > 0 ? '+' : ''}${data.your_edge_pct}%</strong></div>
+        <div>Your Confidence: <strong>${data.your_confidence_pct}%</strong></div>
+        <div>Implied Prob: <strong>${data.implied_probability_pct}%</strong></div>
+      </div>
+      <h4 style="margin:12px 0 8px; font-size:0.9rem;">Bet Sizing on $${bankroll.toLocaleString()}</h4>
+      <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+        <tr style="color:var(--muted); border-bottom:1px solid var(--border);">
+          <th style="padding:6px 0; text-align:left;">Strategy</th>
+          <th style="padding:6px 0; text-align:right;">%</th>
+          <th style="padding:6px 0; text-align:right;">$</th>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:6px 0;">Full Kelly</td>
+          <td style="padding:6px 0; text-align:right;">${data.bet_sizing.full_kelly_pct}%</td>
+          <td style="padding:6px 0; text-align:right;">$${data.bet_sizing.full_kelly_usd}</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:6px 0;">Half Kelly</td>
+          <td style="padding:6px 0; text-align:right;">${data.bet_sizing.half_kelly_pct}%</td>
+          <td style="padding:6px 0; text-align:right;">$${data.bet_sizing.half_kelly_usd}</td>
+        </tr>
+        <tr style="background:rgba(108,99,255,0.08); border-bottom:1px solid var(--border);">
+          <td style="padding:6px 0;"><strong>Quarter Kelly ⭐ Recommended</strong></td>
+          <td style="padding:6px 0; text-align:right;"><strong>${data.bet_sizing.quarter_kelly_pct}%</strong></td>
+          <td style="padding:6px 0; text-align:right;"><strong style="color:var(--accent2);">$${data.bet_sizing.quarter_kelly_usd}</strong></td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0; color:var(--muted);">Flat 1% (conservative)</td>
+          <td style="padding:6px 0; text-align:right; color:var(--muted);">1%</td>
+          <td style="padding:6px 0; text-align:right; color:var(--muted);">$${data.bet_sizing.flat_1pct_usd}</td>
+        </tr>
+      </table>
+    `;
+    result.classList.remove("hidden");
+  } catch(e) {
+    result.className = "alert alert-error mt-2";
+    result.textContent = e.message;
+    result.classList.remove("hidden");
+  }
+}
+
+// ── Log Pick ─────────────────────────────────────────────────────────────
+async function logPick(andPublish = false) {
+  const conf = parseFloat(document.getElementById("lp-conf").value) / 100;
+  const odds = parseFloat(document.getElementById("lp-odds").value);
+  const stake = parseFloat(document.getElementById("lp-stake").value) || null;
+  const alert = document.getElementById("log-alert");
+
+  const payload = {
+    market: "sports",
+    event_name: document.getElementById("lp-event").value,
+    pick_label: document.getElementById("lp-pick").value,
+    decimal_odds: odds,
+    model_confidence: conf,
+    bookmaker: document.getElementById("lp-book").value || null,
+    actual_stake: stake,
+    analysis: document.getElementById("lp-analysis").value || null,
+  };
+
+  if (!payload.event_name || !payload.pick_label || !odds || !conf) {
+    alert.className = "alert alert-error";
+    alert.textContent = "Please fill in event, pick, odds, and confidence.";
+    return;
   }
 
-  async function loadRevenue() {
-    const div = document.getElementById("revenue-data");
-    try {
-      const rev = await getRevenue();
-      div.innerHTML = `
-        <div class="stats-grid" style="margin:0 0 16px;">
-          <div class="stat-card">
-            <div class="stat-value">$${rev.total_revenue_usd.toFixed(2)}</div>
-            <div class="stat-label">Total Revenue</div>
+  try {
+    alert.className = "hidden";
+    const pick = await apiFetch("/picks", { method: "POST", body: JSON.stringify(payload) });
+
+    if (andPublish) {
+      try {
+        const pubResult = await apiFetch(`/picks/${pick.id}/publish`, { method: "POST" });
+        alert.className = "alert alert-success";
+        alert.textContent = `Pick logged (ID #${pick.id}) and published to Telegram! EV: ${pick.ev_percent}%`;
+      } catch(e2) {
+        alert.className = "alert alert-info";
+        alert.textContent = `Pick logged (ID #${pick.id}). Telegram publish failed: ${e2.message}`;
+      }
+    } else {
+      alert.className = "alert alert-success";
+      alert.textContent = `Pick logged! ID #${pick.id} | EV: ${pick.ev_percent}% | Suggested stake: ${pick.suggested_stake_pct}% of bankroll`;
+    }
+
+    loadStats();
+  } catch(e) {
+    alert.className = "alert alert-error";
+    alert.textContent = e.message;
+  }
+}
+
+function logAndPublish() { logPick(true); }
+
+// ── Picks List ───────────────────────────────────────────────────────────
+async function loadPicks(filter) {
+  const list = document.getElementById("picks-list");
+  list.innerHTML = '<div style="text-align:center;"><div class="spinner" style="margin:0 auto;"></div></div>';
+  try {
+    const url = filter ? `/picks?result=${filter}` : "/picks";
+    const picks = await apiFetch(url);
+
+    if (!picks.length) {
+      list.innerHTML = '<p class="text-muted">No picks yet. Use the Scanner to find value bets or log manually.</p>';
+      return;
+    }
+
+    list.innerHTML = picks.map(p => {
+      const evColor = p.ev_percent >= 5 ? "var(--accent2)" : p.ev_percent >= 0 ? "var(--warn)" : "var(--muted)";
+      const resultBadge = {
+        pending: '<span class="badge badge-accent">PENDING</span>',
+        win: '<span style="color:var(--accent2);font-weight:700;">✅ WIN</span>',
+        loss: '<span style="color:var(--danger);font-weight:700;">❌ LOSS</span>',
+        push: '<span class="text-muted">↩️ PUSH</span>',
+        void: '<span class="text-muted">🚫 VOID</span>',
+      }[p.result] || '';
+
+      const pnlStr = p.profit_loss !== null && p.profit_loss !== undefined
+        ? `<span style="color:${p.profit_loss>=0?'var(--accent2)':'var(--danger)'}; font-weight:700;">${p.profit_loss>=0?'+$':'-$'}${Math.abs(p.profit_loss).toFixed(2)}</span>`
+        : '';
+
+      return `
+        <div class="signal-card" style="margin-bottom:10px;">
+          <div class="signal-meta">
+            <span>${resultBadge}</span>
+            <span class="text-muted" style="font-size:0.78rem;">${new Date(p.created_at).toLocaleDateString()}</span>
           </div>
-          <div class="stat-card">
-            <div class="stat-value">$${rev.subscription_revenue_usd.toFixed(2)}</div>
-            <div class="stat-label">Subscription Revenue</div>
+          <div class="signal-title">${p.event_name}</div>
+          <div class="signal-label" style="font-size:1rem; margin-bottom:8px;">${p.pick_label}</div>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; font-size:0.82rem;">
+            <div>Odds: <strong>${p.decimal_odds}</strong></div>
+            <div>Conf: <strong>${Math.round(p.model_confidence * 100)}%</strong></div>
+            <div>EV: <strong style="color:${evColor}">${p.ev_percent > 0 ? '+' : ''}${p.ev_percent}%</strong></div>
+            ${p.actual_stake ? `<div>Stake: <strong>$${p.actual_stake}</strong></div>` : ''}
+            ${pnlStr ? `<div>P&L: ${pnlStr}</div>` : ''}
           </div>
-          <div class="stat-card">
-            <div class="stat-value">$${rev.credit_revenue_usd.toFixed(2)}</div>
-            <div class="stat-label">Credit Revenue</div>
+          ${p.analysis ? `<div class="text-muted mt-1" style="font-size:0.8rem; font-style:italic;">"${p.analysis}"</div>` : ''}
+          <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+            ${p.result === 'pending' ? `<button class="btn btn-outline btn-sm" onclick="openResolve(${p.id})">Record Result</button>` : ''}
+            ${!p.is_published ? `<button class="btn btn-outline btn-sm" onclick="publishPick(${p.id}, this)">📢 Publish</button>` : '<span class="text-muted" style="font-size:0.78rem; padding:6px 0;">✓ Published</span>'}
           </div>
         </div>
-        <h4 style="margin-bottom:8px;">Users by Tier</h4>
-        ${Object.entries(rev.users_by_tier).map(([tier, count]) => `
-          <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
-            <span style="text-transform:capitalize;">${tier}</span>
-            <strong>${count}</strong>
+      `;
+    }).join("");
+  } catch(e) {
+    list.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+}
+
+async function publishPick(id, btn) {
+  btn.disabled = true; btn.textContent = "Publishing…";
+  try {
+    const res = await apiFetch(`/picks/${id}/publish`, { method: "POST" });
+    if (res.success) {
+      btn.textContent = "✓ Published";
+    } else {
+      btn.textContent = "Failed";
+      alert("Publish error: " + res.error);
+    }
+  } catch(e) {
+    btn.textContent = "Error";
+    alert(e.message);
+  }
+}
+
+// ── Resolve Modal ────────────────────────────────────────────────────────
+function openResolve(id) {
+  document.getElementById("resolve-pick-id").value = id;
+  document.getElementById("resolve-result").value = "win";
+  document.getElementById("resolve-closing").value = "";
+  document.getElementById("modal-resolve").classList.add("open");
+}
+
+async function submitResolve() {
+  const id = document.getElementById("resolve-pick-id").value;
+  const result = document.getElementById("resolve-result").value;
+  const closing = parseFloat(document.getElementById("resolve-closing").value) || null;
+
+  try {
+    await apiFetch(`/picks/${id}/result`, {
+      method: "PATCH",
+      body: JSON.stringify({ result, closing_odds: closing }),
+    });
+    document.getElementById("modal-resolve").classList.remove("open");
+    loadPicks(null);
+    loadStats();
+  } catch(e) {
+    alert(e.message);
+  }
+}
+
+// ── Track Record ─────────────────────────────────────────────────────────
+async function loadRecord() {
+  const div = document.getElementById("record-data");
+  try {
+    const r = await apiFetch("/picks/record");
+
+    if (!r.resolved) {
+      div.innerHTML = `
+        <div class="card">
+          <h3>Track Record</h3>
+          <p class="text-muted mt-1">No resolved picks yet. Log and resolve picks to build your verified record.</p>
+          <p class="text-muted mt-1" style="font-size:0.85rem;">Once you have 50+ resolved picks with positive ROI, you can start selling subscriptions on <a href="https://whop.com" target="_blank">Whop.com</a>.</p>
+        </div>`;
+      return;
+    }
+
+    const roiColor = (r.roi_pct || 0) >= 0 ? "var(--accent2)" : "var(--danger)";
+    const pnlColor = (r.total_profit || 0) >= 0 ? "var(--accent2)" : "var(--danger)";
+
+    div.innerHTML = `
+      <div class="card" style="max-width:700px; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+          <div>
+            <h3>Verified Track Record</h3>
+            <p class="text-muted" style="font-size:0.82rem; margin-top:4px;">${r.message}</p>
+          </div>
+          <span class="badge badge-accent" style="font-size:0.7rem;">VERIFIED</span>
+        </div>
+
+        <div class="stats-grid mt-2" style="margin-bottom:0;">
+          <div class="stat-card">
+            <div class="stat-value">${r.wins}W / ${r.losses}L</div>
+            <div class="stat-label">Record</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color:var(--accent2)">${r.win_rate_pct}%</div>
+            <div class="stat-label">Win Rate</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color:${roiColor}">${(r.roi_pct||0)>=0?'+':''}${r.roi_pct}%</div>
+            <div class="stat-label">ROI</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" style="color:${pnlColor}">${(r.total_profit||0)>=0?'+$':'-$'}${Math.abs(r.total_profit||0).toFixed(2)}</div>
+            <div class="stat-label">Total P&L</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:700px; margin-bottom:20px;">
+        <h3 style="margin-bottom:12px;">Monetization Readiness</h3>
+        <div style="font-size:0.88rem;">
+          <div style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+            ${r.resolved >= 50 ? '✅' : '⏳'} 50+ resolved picks <span class="text-muted">(${r.resolved}/50)</span>
+          </div>
+          <div style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+            ${(r.roi_pct||0) >= 5 ? '✅' : '⏳'} 5%+ ROI <span class="text-muted">(${r.roi_pct||0}%)</span>
+          </div>
+          <div style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+            ${(r.win_rate_pct||0) >= 55 ? '✅' : '⏳'} 55%+ win rate <span class="text-muted">(${r.win_rate_pct||0}%)</span>
+          </div>
+        </div>
+        ${(r.resolved >= 50 && (r.roi_pct||0) >= 5) ? `
+          <div class="alert alert-success mt-2">
+            🎉 You're ready to monetize! List your picks service on Whop.com or start a paid Telegram channel.
+          </div>
+          <div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">
+            <a href="https://whop.com/sell" target="_blank" class="btn btn-primary btn-sm">List on Whop.com</a>
+            <a href="https://t.me/BotFather" target="_blank" class="btn btn-outline btn-sm">Create Telegram Bot</a>
+          </div>
+        ` : `
+          <div class="alert alert-info mt-2">
+            Build your track record first. Post picks daily, be transparent about losses, and aim for 100+ picks before selling.
+          </div>
+        `}
+      </div>
+
+      ${Object.keys(r.by_market).length ? `
+      <div class="card" style="max-width:700px;">
+        <h3 style="margin-bottom:12px;">By Market</h3>
+        ${Object.entries(r.by_market).map(([m, data]) => `
+          <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:0.88rem;">
+            <span style="text-transform:capitalize;">${m}</span>
+            <span>${data.wins}W / ${data.losses}L</span>
+            <span style="color:${data.pnl>=0?'var(--accent2)':'var(--danger)'};">${data.pnl>=0?'+$':'-$'}${Math.abs(data.pnl).toFixed(2)}</span>
           </div>
         `).join("")}
-      `;
-    } catch(e) {
-      div.innerHTML = `<p class="text-muted">Error: ${e.message}</p>`;
-    }
+      </div>` : ''}
+    `;
+  } catch(e) {
+    div.innerHTML = `<div class="alert alert-error">${e.message}</div>`;
   }
+}
 
-  loadStats();
+loadStats();
 </script>
 </body>
 </html>
