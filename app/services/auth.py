@@ -1,41 +1,74 @@
+"""Auth service — pure stdlib JWT (HMAC-SHA256) + bcrypt passwords."""
+import base64
+import hashlib
+import hmac
+import json
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
-import secrets
 
-from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models.user import User
 
-ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# ── Minimal HS256 JWT (no external crypto deps) ──────────────────────────
+
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+def _b64url_decode(s: str) -> bytes:
+    pad = 4 - len(s) % 4
+    return base64.urlsafe_b64decode(s + "=" * (pad % 4))
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    to_encode = data.copy()
+    payload = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.secret_key, algorithm=ALGORITHM)
+    payload["exp"] = int(expire.timestamp())
+    header = _b64url_encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+    body = _b64url_encode(json.dumps(payload).encode())
+    sig_input = f"{header}.{body}".encode()
+    sig = _b64url_encode(hmac.new(settings.secret_key.encode(), sig_input, hashlib.sha256).digest())
+    return f"{header}.{body}.{sig}"
 
 
 def decode_token(token: str) -> Optional[dict]:
     try:
-        return jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
-    except JWTError:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return None
+        header, body, sig = parts
+        expected = _b64url_encode(
+            hmac.new(settings.secret_key.encode(), f"{header}.{body}".encode(), hashlib.sha256).digest()
+        )
+        if not hmac.compare_digest(expected, sig):
+            return None
+        payload = json.loads(_b64url_decode(body))
+        if payload.get("exp", 0) < int(datetime.utcnow().timestamp()):
+            return None
+        return payload
+    except Exception:
         return None
 
+
+# ── Password hashing (bcrypt via stdlib-compatible wrapper) ──────────────
+
+def hash_password(password: str) -> str:
+    import bcrypt
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    import bcrypt
+    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+
+
+# ── DB helpers ───────────────────────────────────────────────────────────
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
     return db.query(User).filter(User.email == email).first()

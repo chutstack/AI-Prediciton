@@ -34,12 +34,13 @@ from app.services.auth import generate_api_key
 
 router = APIRouter(prefix="/billing", tags=["Billing & Subscriptions"])
 
-stripe.api_key = settings.stripe_secret_key
+_stripe_key = getattr(settings, "stripe_secret_key", "")
+stripe.api_key = _stripe_key
 
 TIER_PRICE_MAP = {
-    SubscriptionTier.BASIC: settings.stripe_basic_price_id,
-    SubscriptionTier.PRO: settings.stripe_pro_price_id,
-    SubscriptionTier.ENTERPRISE: settings.stripe_enterprise_price_id,
+    SubscriptionTier.BASIC: getattr(settings, "stripe_basic_price_id", ""),
+    SubscriptionTier.PRO: getattr(settings, "stripe_pro_price_id", ""),
+    SubscriptionTier.ENTERPRISE: getattr(settings, "stripe_enterprise_price_id", ""),
 }
 
 
@@ -79,7 +80,7 @@ def create_checkout_session(
     db: Session = Depends(get_db),
 ):
     """Create a Stripe Checkout session for subscription."""
-    if not settings.stripe_secret_key or settings.stripe_secret_key.startswith("sk_test_your"):
+    if not _stripe_key or _stripe_key.startswith("sk_test_your"):
         raise HTTPException(
             status_code=503,
             detail="Stripe not configured. Use /billing/demo-activate for testing."
@@ -117,7 +118,7 @@ def buy_credits_checkout(
     if req.package not in CREDIT_PACKAGES:
         raise HTTPException(status_code=400, detail=f"Unknown package. Choose: {list(CREDIT_PACKAGES.keys())}")
 
-    if not settings.stripe_secret_key or settings.stripe_secret_key.startswith("sk_test_your"):
+    if not _stripe_key or _stripe_key.startswith("sk_test_your"):
         raise HTTPException(
             status_code=503,
             detail="Stripe not configured. Use /billing/demo-activate for testing."
@@ -187,12 +188,12 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
     Stripe webhook endpoint.
     Handles: checkout.session.completed, invoice.paid, customer.subscription.deleted
     """
-    if not settings.stripe_webhook_secret:
+    if not getattr(settings, "stripe_webhook_secret", ""):
         raise HTTPException(status_code=503, detail="Webhook secret not configured.")
 
     payload = await request.body()
     try:
-        event = stripe.Webhook.construct_event(payload, stripe_signature, settings.stripe_webhook_secret)
+        event = stripe.Webhook.construct_event(payload, stripe_signature, getattr(settings, "stripe_webhook_secret", ""))
     except stripe.error.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
