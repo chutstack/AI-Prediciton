@@ -18,9 +18,10 @@ import random
 
 Row = Dict[str, float]
 MIN_STRATEGY_WEIGHT = 1e-6
-PHOTO_QUALITY_WEIGHT = 1.8
-PRICE_SCORE_WEIGHT = -1.5
-RESPONSE_DELAY_WEIGHT = -0.8
+PHOTO_QUALITY_WEIGHT = 1.8  # Higher-quality photos improve conversion odds most strongly.
+PRICE_SCORE_WEIGHT = -1.5  # Higher relative prices materially reduce conversion odds.
+RESPONSE_DELAY_WEIGHT = -0.8  # Slower replies hurt conversion odds, but less than price.
+CONVERSION_THRESHOLD = -0.2
 
 
 def train_validation_split(
@@ -230,7 +231,7 @@ def demo_dataset(n: int = 200, seed: int = 7) -> Tuple[List[Row], List[int]]:
             + RESPONSE_DELAY_WEIGHT * response_delay
         )
         raw += rng.uniform(-0.2, 0.2)
-        target = 1 if raw > -0.2 else 0
+        target = 1 if raw > CONVERSION_THRESHOLD else 0
 
         X.append(
             {
