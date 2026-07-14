@@ -17,6 +17,10 @@ import random
 
 
 Row = Dict[str, float]
+MIN_STRATEGY_WEIGHT = 1e-6
+PHOTO_QUALITY_WEIGHT = 1.8
+PRICE_SCORE_WEIGHT = -1.5
+RESPONSE_DELAY_WEIGHT = -0.8
 
 
 def train_validation_split(
@@ -194,9 +198,9 @@ class BestOfBlendModel:
     def predict_proba(self, row: Row) -> float:
         if not self.selected:
             return 0.5
-        total = sum(max(1e-6, s.score) for s in self.selected)
+        total = sum(max(MIN_STRATEGY_WEIGHT, s.score) for s in self.selected)
         weighted_sum = sum(
-            s.strategy.predict_proba(row) * max(1e-6, s.score)
+            s.strategy.predict_proba(row) * max(MIN_STRATEGY_WEIGHT, s.score)
             for s in self.selected
         )
         return weighted_sum / total
@@ -220,7 +224,11 @@ def demo_dataset(n: int = 200, seed: int = 7) -> Tuple[List[Row], List[int]]:
         photo_quality = rng.random()  # higher is better
 
         # Easy niche pattern with slight noise
-        raw = 1.8 * photo_quality - 1.5 * price_score - 0.8 * response_delay
+        raw = (
+            PHOTO_QUALITY_WEIGHT * photo_quality
+            + PRICE_SCORE_WEIGHT * price_score
+            + RESPONSE_DELAY_WEIGHT * response_delay
+        )
         raw += rng.uniform(-0.2, 0.2)
         target = 1 if raw > -0.2 else 0
 
