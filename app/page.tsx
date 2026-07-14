@@ -73,8 +73,8 @@ export default function Home() {
 
       <section className="workspace">
         <form onSubmit={submit} className="panel formPanel">
-          <label>Prediction question</label>
-          <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Will X happen by Y date?" />
+          <label htmlFor="question">Prediction question</label>
+          <input id="question" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Will X happen by Y date?" />
 
           <div className="examples">
             {EXAMPLES.map((example) => (
