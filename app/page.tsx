@@ -73,8 +73,8 @@ export default function Home() {
 
       <section className="workspace">
         <form onSubmit={submit} className="panel formPanel">
-          <label>Prediction question</label>
-          <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Will X happen by Y date?" />
+          <label htmlFor="question">Prediction question</label>
+          <input id="question" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Will X happen by Y date?" />
 
           <div className="examples">
             {EXAMPLES.map((example) => (
@@ -82,8 +82,8 @@ export default function Home() {
             ))}
           </div>
 
-          <label>Evidence and context</label>
-          <textarea value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder="Paste known facts, recent developments, arguments for and against, or assumptions…" />
+          <label htmlFor="evidence">Evidence and context</label>
+          <textarea id="evidence" value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder="Paste known facts, recent developments, arguments for and against, or assumptions…" />
 
           <div className="priorRow">
             <div>
@@ -92,7 +92,7 @@ export default function Home() {
             </div>
             <strong>{prior}%</strong>
           </div>
-          <input className="range" type="range" min="5" max="95" value={prior} onChange={(e) => setPrior(Number(e.target.value))} />
+          <input className="range" type="range" min="5" max="95" value={prior} aria-label="Base-rate prior" onChange={(e) => setPrior(Number(e.target.value))} />
           <button className="primary" type="submit">Generate forecast</button>
         </form>
 
