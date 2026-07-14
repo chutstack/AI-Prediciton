@@ -92,7 +92,7 @@ export default function Home() {
             </div>
             <strong>{prior}%</strong>
           </div>
-          <input className="range" type="range" min="5" max="95" value={prior} onChange={(e) => setPrior(Number(e.target.value))} />
+          <input className="range" type="range" min="5" max="95" value={prior} aria-label="Base-rate prior" onChange={(e) => setPrior(Number(e.target.value))} />
           <button className="primary" type="submit">Generate forecast</button>
         </form>
 
