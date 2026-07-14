@@ -82,8 +82,8 @@ export default function Home() {
             ))}
           </div>
 
-          <label>Evidence and context</label>
-          <textarea value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder="Paste known facts, recent developments, arguments for and against, or assumptions…" />
+          <label htmlFor="evidence">Evidence and context</label>
+          <textarea id="evidence" value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder="Paste known facts, recent developments, arguments for and against, or assumptions…" />
 
           <div className="priorRow">
             <div>
