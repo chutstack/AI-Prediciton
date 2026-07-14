@@ -195,7 +195,11 @@ class BestOfBlendModel:
         if not self.selected:
             return 0.5
         total = sum(max(1e-6, s.score) for s in self.selected)
-        return sum(s.strategy.predict_proba(row) * max(1e-6, s.score) for s in self.selected) / total
+        weighted_sum = sum(
+            s.strategy.predict_proba(row) * max(1e-6, s.score)
+            for s in self.selected
+        )
+        return weighted_sum / total
 
     def predict(self, row: Row) -> int:
         return 1 if self.predict_proba(row) >= 0.5 else 0
